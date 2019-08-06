@@ -19,6 +19,7 @@ type ValidationError =
 
 type ErrorMessage =
   | ValidationError of ValidationError list
+  | DbError of string
   | SmtpServerError of string
 
 
@@ -61,18 +62,34 @@ let validateEmail email =
     |> emailNotBlank
     |> Validation.ofResult
 
-let (<!>) = Validation.map
-let (<*>) = Validation.apply
+let ( <!> ) = Validation.map
+let ( <*> ) = Validation.apply
+let ( >>= ) = Result.bind
 
 let validateRequest req =
     let createRequest userId name email =
        {UserId=userId; Name= name; Email=email }
 
-    createRequest
-    <!> (validateUserId req.UserId)
-    <*> (validateName req.Name)
-    <*> (validateEmail req.Email)
-    |> Result.mapError ValidationError
+    let userIdR  = validateUserId req.UserId
+    let nameR = validateName req.Name
+    let emailR = validateEmail req.Email
+
+    // uncomment to see this this fail...
+    // createRequest userIdR nameR emailR
+
+    // option1 -- use the special operators
+    let requestR =
+        createRequest <!> userIdR <*> nameR <*> emailR
+
+    // NOTE: this is equivalent to this ugly code
+    // let requestR =
+    //    Validation.apply (Validation.apply (Validation.map createRequest userIdR) nameR) emailR
+
+    // option2 -- use the "lift3" function
+    // (because there are three parameters)
+    // let requestR = (Result.lift3 createRequest) userIdR nameR emailR
+
+    requestR |> Result.mapError ValidationError
 
 
 // -------------------------------
@@ -80,7 +97,7 @@ let validateRequest req =
 // -------------------------------
 
 let goodRequest = {
-  UserId=0
+  UserId=1
   Name= "Alice"
   Email="ABC@gmail.COM"
 }

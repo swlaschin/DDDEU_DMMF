@@ -25,14 +25,16 @@ let returnHello() =    // () means no input
 
 // Example 2 - defining a function with an int parameter
 //              causes type errors
-let printName aName =
+let printName2 aName =
     printfn "Hello %i" aName
 
-// test
+// test -- uncomment below
+(*
 let name = "Alice"
-printName name
+printName2 name
+*)
 
-//    val printName : int -> unit
+//    val printName2 : int -> unit
 //    error FS0001: The type 'string' is not compatible with [an integer type]
 
 
@@ -59,7 +61,6 @@ printIntAndString 1 2
 
 // ====================================
 // Type annotations
-
 
 (*
 let toUpper x =
@@ -100,6 +101,11 @@ let helloInt_v4 (anInt:int) :string =
 let returnSameThing x = x
 
 (*
+T returnSameThing<T>(T x) {
+  return X
+  }
+*)
+(*
 val returnSameThing : x:'a -> 'a
 *)
 
@@ -112,3 +118,4 @@ val ignoreTheInput : x:'a -> unit
 val ignoreTwoInputs : x:'a -> y:'b -> unit
 val ignoreThreeInputs : x:'a -> y:'b -> z:'c -> unit
 *)
+

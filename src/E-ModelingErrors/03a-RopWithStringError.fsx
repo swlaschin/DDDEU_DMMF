@@ -69,11 +69,21 @@ unsendableRequest |> validateRequest
 let canonicalizeEmail input =
    { input with Email = input.Email.Trim().ToLower() }
 
-let canonicalizeEmailR =
-  Result.map canonicalizeEmail
 
 
 // test so far
+goodRequest
+|> validateRequest
+|> Result.map canonicalizeEmail
+
+(*
+let canonicalizeEmailR =   // value restriction error
+  Result.map canonicalizeEmail
+*)
+
+let canonicalizeEmailR twoTrackInput =  // value restriction error fixed!!!
+  twoTrackInput |> Result.map canonicalizeEmail
+
 goodRequest
 |> validateRequest
 |> canonicalizeEmailR
@@ -93,8 +103,8 @@ let tee f result =
   f result
   result
 
-let updateDbR =
-  Result.map (tee updateDb)
+let updateDbR twoTrackInput =
+  twoTrackInput |> Result.map (tee updateDb)
 
 
 // test so far
@@ -115,6 +125,18 @@ let sendEmail (request:Request) =
         printfn "Sending email=%s" request.Email
         request // return request for processing by next step
 
+(*
+// this code will throw an exception :(
+unsendableRequest
+|> validateRequest
+|> canonicalizeEmailR
+|> Result.map sendEmail
+*)
+
+// The fix is to convert the exception-throwing code
+// into Result-returning code
+
+
 let catch exceptionThrowingFunction handler oneTrackInput =
     try
         Ok (exceptionThrowingFunction oneTrackInput)
@@ -122,13 +144,12 @@ let catch exceptionThrowingFunction handler oneTrackInput =
     | ex ->
         Error (handler ex)
 
-let catchR exceptionThrowingFunction handler twoTrackInput =
-    let catch' = catch exceptionThrowingFunction handler
-    twoTrackInput |> Result.bind catch'
+let catchR exceptionThrowingFunction exnConverter =
+    Result.bind (catch exceptionThrowingFunction exnConverter)
 
 let sendEmailR twoTrackInput =
-    let handler (ex:exn) = ex.Message
-    catchR sendEmail handler twoTrackInput
+    let exnConverter (ex:exn) = ex.Message
+    catchR sendEmail exnConverter twoTrackInput
 
 
 // test so far

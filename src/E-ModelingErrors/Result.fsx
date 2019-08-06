@@ -105,6 +105,12 @@ module Result =
         let (<*>) = apply
         f <!> x1 <*> x2 <*> x3 <*> x4
 
+    /// Lift a five parameter function to use Result parameters
+    let lift5 f x1 x2 x3 x4 x5 =
+        let (<!>) = map
+        let (<*>) = apply
+        f <!> x1 <*> x2 <*> x3 <*> x4 <*> x5
+
     /// Apply a monadic function with two parameters
     let bind2 f x1 x2 = lift2 f x1 x2 |> bind id
 

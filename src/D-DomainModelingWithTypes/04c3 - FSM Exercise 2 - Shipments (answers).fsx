@@ -21,53 +21,112 @@ open System
 
 module ShipmentsDomain =
 
+    // =========================================
     // 1) Start with the domain types that are independent of state
 
     type Package = string // placeholder for now
     type TruckId = int
-    type SentUtc = DateTime
-    type DeliveredUtc = DateTime
+    type DeliveryDate = DateTime
     type Signature = string
 
+    // =========================================
     // 2) Create types to represent the data stored for each state
 
-    type DeliveryAttempt = DeliveryAttempt of Package * SentUtc
-    type UndeliveredData =
-        UndeliveredData of (Package * DeliveryAttempt list)
-    type OutForDeliveryData =
-        OutForDeliveryData of Package * TruckId * SentUtc * DeliveryAttempt list
-    type DeliveredData =
-        DeliveredData of Package * Signature * DeliveredUtc
+    /// Information about a package in an Undelivered state
+    type UndeliveredData = {
+        Package : Package
+        }
 
+    /// Tracks a single attempt to deliver a package
+    type DeliveryAttempt = {
+        Package : Package
+        AttemptedAt : DeliveryDate
+        }
+
+    /// Information about a package in an OutForDelivery state
+    type OutForDeliveryData = {
+        Package : Package
+        TruckId : TruckId
+        AttemptedAt : DeliveryDate
+        PreviousAttempts : DeliveryAttempt list
+        }
+
+    /// Information about a package in a Delivered state
+    type DeliveredData = {
+        Package : Package
+        Signature : Signature
+        DeliveredAt : DeliveryDate
+        }
+
+    /// Information about a package in an FailedDelivery state
+    type FailedDeliveryData = {
+        Package : Package
+        PreviousAttempts :  DeliveryAttempt list
+        }
+
+    // =========================================
     // 3) Create a type that represent the choice of all the states
 
     type Shipment =
         | UndeliveredState of UndeliveredData
         | OutForDeliveryState of OutForDeliveryData
         | DeliveredState of DeliveredData
+        | FailedDeliveryState of FailedDeliveryData
 
+    // =========================================
     // 4) Create transition functions that transition from one state type to another
 
-    let sendOutForDelivery (UndeliveredData (package, attempts)) (truckId:TruckId)  :Shipment =
-        let utcNow = System.DateTime.UtcNow
-        // return new state
-        let newAttempt = DeliveryAttempt (package,utcNow)
-        let newAttempts = newAttempt :: attempts
-        let outForDeliveryData = OutForDeliveryData  (package, truckId, utcNow, newAttempts)
-        OutForDeliveryState outForDeliveryData
 
-    let addressNotFound (OutForDeliveryData (package, truckId, utcNow, attempts)) :Shipment =
-        // return new state
+    /// Send a package out for delivery the first time and return a OutForDeliveryData
+    let sendOutForFirstDelivery (undelivered:UndeliveredData) (truckId:TruckId)  :OutForDeliveryData =
+        // create data associated with new state
+        let attemptedAt = System.DateTime.UtcNow
+        let outForDeliveryData : OutForDeliveryData = {
+            Package = undelivered.Package
+            TruckId = truckId
+            AttemptedAt = attemptedAt
+            PreviousAttempts = []
+            }
+        // return the data
+        outForDeliveryData
 
-        let undeliveredData = UndeliveredData (package, attempts)
-        UndeliveredState undeliveredData
+    /// When an OutForDelivery fails, return a new FailedDeliveryData
+    let addressNotFound (outForDelivery:OutForDeliveryData) :FailedDeliveryData =
+        // create data associated with new state
+        let previousAttempt : DeliveryAttempt = {
+            Package = outForDelivery.Package
+            AttemptedAt = outForDelivery.AttemptedAt
+            }
+        let previousAttempts = previousAttempt :: outForDelivery.PreviousAttempts
+        let failedDeliveryData : FailedDeliveryData = {
+            Package =  outForDelivery.Package
+            PreviousAttempts = previousAttempts
+            }
+        // return the data
+        failedDeliveryData
 
-    let signedFor (OutForDeliveryData (package, truckId, utcNow, attempts)) (signature:Signature) :Shipment =
-        let utcNow = System.DateTime.UtcNow
-        // return new state
-        let deliveredData = DeliveredData (package,signature,utcNow)
-        DeliveredState deliveredData
+    /// When an OutForDelivery succeeds, return a new DeliveredData
+    let signedFor (outForDelivery:OutForDeliveryData) (signature:Signature) :DeliveredData =
+        let deliveredData : DeliveredData = {
+            Package = outForDelivery.Package
+            Signature = signature
+            DeliveredAt = outForDelivery.AttemptedAt
+            }
+        deliveredData
 
+
+    /// Send a package out for delivery the after a failure and return a OutForDeliveryData
+    let sendOutForRedelivery (failedDelivery:FailedDeliveryData) (truckId:TruckId)  :OutForDeliveryData =
+        // create data associated with new state
+        let attemptedAt = System.DateTime.UtcNow
+        let outForDeliveryData : OutForDeliveryData = {
+            Package = failedDelivery.Package
+            TruckId = truckId
+            AttemptedAt = attemptedAt
+            PreviousAttempts = failedDelivery.PreviousAttempts
+            }
+        // return the data
+        outForDeliveryData
 
 // ================================================
 // Now write some client code that uses this API
@@ -78,8 +137,10 @@ module ShipmentsClient =
 
     let putShipmentOnTruck (truckId:TruckId) state =
         match state with
-        | UndeliveredState package ->
-            sendOutForDelivery package truckId
+        | UndeliveredState data ->
+            let newData = sendOutForFirstDelivery data truckId
+            // create a new state from that data
+            OutForDeliveryState newData
         | OutForDeliveryState _ ->
             printfn "package already out"
             // return original state
@@ -88,32 +149,39 @@ module ShipmentsClient =
             printfn "package already delivered"
             // return original state
             state
+        | FailedDeliveryState data ->
+            let newData = sendOutForRedelivery data truckId
+            OutForDeliveryState newData
 
     let markAsDelivered (signature:Signature) state =
         match state with
         | UndeliveredState _  ->
             printfn "package not out"
-            // return original state
-            state
+            state  // return original state
         | OutForDeliveryState data ->
-            signedFor data signature
-        | DeliveredState _ ->
+            let newData = signedFor data signature
+            DeliveredState newData
+        | DeliveredState data ->
             printfn "package already delivered"
-            // return original state
-            state
+            state // return original state
+        | FailedDeliveryState _ ->
+            printfn "package not out"
+            state  // return original state
 
     let markAddressNotFound state =
         match state with
         | UndeliveredState _  ->
             printfn "package not out"
-            // return original state
-            state
+            state // return original state
         | OutForDeliveryState data ->
-            addressNotFound data
+            let newData = addressNotFound data
+            FailedDeliveryState newData
         | DeliveredState _ ->
             printfn "package already delivered"
-            // return original state
-            state
+            state // return original state
+        | FailedDeliveryState _ ->
+            printfn "package not out"
+            state  // return original state
 
 
 
@@ -125,7 +193,9 @@ open ShipmentsDomain
 open ShipmentsClient
 
 let package = "My Package"
-let newShipment = UndeliveredState (UndeliveredData (package,[]))
+let newShipment =
+    let data : UndeliveredData = {Package = package}
+    UndeliveredState data
 
 let truckId = 123
 let outForDelivery =
