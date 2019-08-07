@@ -22,9 +22,9 @@ let myName = "Scott"
 printfn "my name is %s" myName
 
 
-(*
-printfn experiments
-*)
+// ======================================
+// Playing around with printfn
+// ======================================
 
 "hello"  // string
 42       // int

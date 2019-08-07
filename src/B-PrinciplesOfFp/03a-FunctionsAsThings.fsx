@@ -33,6 +33,40 @@ module FunctionsAsValues =
     let sixAgain = r 3 // result is 6
 
 // --------------------------------
+// Functions vs. Lambdas
+// --------------------------------
+
+module FunctionsAndLambdas =
+
+    // a one-parameter function defined in the usual way
+    let addOne_v1 x = x + 1
+    // val addOne_v1 : x:int -> int
+
+    // a one-parameter function defined as a lambda
+    let addOne_v2 = fun x -> x + 1
+    // val add_v2 : x:int -> int
+
+
+    // a two-parameter function defined in the usual way
+    let add_v1 x y = x + y
+    // val add_v1 : x:int -> y:int -> int
+
+    // a two-parameter function defined as a lambda
+    let add_v2 = fun x y -> x + y
+    // val add_v2 : x:int -> y:int -> int
+
+    // a two-parameter function defined as a mixture
+    let add_v3 x = fun y -> x + y
+    // val add_v3 : x:int -> y:int -> int
+
+    // alternative to v3 using an inner function
+    let add_v3a x =
+        let innerFn y = x + y
+        innerFn // return
+    // val add_v3a : x:int -> (int -> int)
+
+
+// --------------------------------
 // functions as data
 // --------------------------------
 
@@ -53,6 +87,11 @@ module ListOfFunctions =
     // If 100 is the input, the output is 101
     // If 100 is the input, the output is 200
     // If 100 is the input, the output is 97
+
+
+// --------------------------------
+// functions need to have parameters!
+// --------------------------------
 
 module StrictEvaluation =
 
