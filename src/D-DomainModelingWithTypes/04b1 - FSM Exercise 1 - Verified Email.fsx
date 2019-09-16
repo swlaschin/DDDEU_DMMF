@@ -4,7 +4,7 @@
 // See "Email transition diagram.png"
 //
 // ================================================
- s
+ 
 // Here are the EmailAddress types from the slide
 
 type EmailAddress =

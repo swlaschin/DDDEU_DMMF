@@ -1,7 +1,7 @@
 ﻿(*
 Railway oriented programming
 *)
-
+open System
 #load "Result.fsx"
 
 type Request = {
@@ -66,7 +66,7 @@ unsendableRequest |> validateRequest
 // ------------------------
 
 // trim spaces and lowercase
-let canonicalizeEmail input =
+let canonicalizeEmail (input:Request) =
    { input with Email = input.Email.Trim().ToLower() }
 
 
